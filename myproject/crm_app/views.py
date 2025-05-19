@@ -10,17 +10,25 @@ from rest_framework_simplejwt.views import  TokenObtainPairView
 
 
 class RegisterView(generics.CreateAPIView):
+    queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
 
     def create(self, request, *args, **kwargs):
-        serializer =self.get_serializer(data=request.data)
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        return Response(serializer.data,  status=status.HTTP_201_CREATED)
+        return Response({
+            "user": {
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "email": user.email,
+                "role": user.role
+            }
+        }, status=status.HTTP_201_CREATED)
 
 
 class CustomLoginView(TokenObtainPairView):
-    serializer_class =LoginSerializer
+    serializer_class = LoginSerializer
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -29,8 +37,9 @@ class CustomLoginView(TokenObtainPairView):
         except Exception:
             return Response({"detail": "Неверные учетные данные"}, status=status.HTTP_401_UNAUTHORIZED)
 
-        user = serializer.validated_data
-        return Response(serializer.data, status = status.HTTP_200_OK)
+        user = serializer.validated_data  # ✅ исправлено здесь
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class CustomAdminLoginView(TokenObtainPairView):
@@ -43,7 +52,7 @@ class CustomAdminLoginView(TokenObtainPairView):
         except Exception:
             return Response({"detail": "Неверные учетные данные"}, status=status.HTTP_401_UNAUTHORIZED)
 
-        user = serializer.validated_data.get('user')
+        user = serializer.validated_data
 
         if not user.is_staff and not user.is_superuser:
             return Response({"detail": "Доступ разрешен только администраторам"},

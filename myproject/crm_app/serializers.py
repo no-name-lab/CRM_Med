@@ -7,19 +7,24 @@ from .models import *
 from django.db.models import F, ExpressionWrapper, FloatField, Sum, Count, Q
 from decimal import Decimal
 
+
 class UserSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
+
     class Meta:
         model = CustomUser
-        fields = ['first_name', 'last_name', 'email', 'phone_number', 'password', 'role' ]
-        extra_kwargs = {'password': {'write_only': True}}
+        fields = ['first_name', 'last_name', 'email', 'phone_number', 'password', 'role']
 
     def create(self, validated_data):
-            user = CustomUser.objects.create_user(**validated_data)
-            return user
+        password = validated_data.pop('password')
+        user = CustomUser.objects.create_user(**validated_data)
+        user.set_password(password)
+        user.save()
+        return user
 
 
 class LoginSerializer(serializers.Serializer):
-    username = serializers.CharField()
+    email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
 
     def validate(self, data):
@@ -35,7 +40,6 @@ class LoginSerializer(serializers.Serializer):
                 'first_name': instance.first_name,
                 'last_name': instance.last_name,
                 'email': instance.email,
-                'phone_number': instance.phone_number,
                 'role': instance.role,
 
             },
