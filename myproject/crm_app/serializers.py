@@ -1,6 +1,6 @@
 from django.contrib.auth import authenticate
 from rest_framework import serializers
-from doctor.models import  Doctor, Patient, CustomUser, Appointment, Department, Service, DoctorSchedule
+from reception.models import  Doctor, Patient, CustomUser, Appointment, Department, Service, DoctorSchedule
 from rest_framework.serializers import Serializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import *
