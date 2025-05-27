@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.db.models import Sum, ExpressionWrapper, F, FloatField
 from phonenumber_field.modelfields import PhoneNumberField
 from django.db import models
 from django.contrib.auth.base_user import BaseUserManager
@@ -84,15 +85,47 @@ class Doctor(UserProfile):
     medical_license = models.CharField(max_length=256, null=True, blank=True )
     bonus = models.PositiveIntegerField(default=0, null=True, blank=True)
     image = models.ImageField(upload_to='doctor_img/', null=True, blank=True)
-    departament = models.ForeignKey(Department, related_name='departament_doctor', on_delete=models.CASCADE, null=True,
+    department = models.ForeignKey(Department, related_name='departament_doctor', on_delete=models.CASCADE, null=True,
                                     blank=True)
     cabinet = models.SmallIntegerField()
+    #admin models
+    job_title = models.CharField(max_length=34, null=True, blank=True)
 
     class Meta:
          verbose_name = "Doctor"
 
     def __str__(self):
         return f"Dr. {self.first_name} {self.last_name} {self.cabinet} {self.speciality}"
+
+    #admin models
+    def get_appointments(self):
+        return self.doctor_customer.all()
+
+    def total_price(self):
+        return self.get_appointments().aggregate(total=Sum('price'))['total'] or 0
+
+    def total_discounted_price(self):
+        discounted = self.get_appointments().aggregate(
+            total=Sum(
+                ExpressionWrapper(
+                    F('price') - (F('price') * F('discount') / 100.0),
+                    output_field=FloatField()
+                )
+            )
+        )
+        return discounted['total'] or 0
+
+    def total_bonus(self):
+        total = self.total_discounted_price()
+        return round(total * (self.bonus or 0) / 100.0, 2)
+
+    def total_appointments(self):
+        return self.get_appointments().count()
+
+    def payment_method_sums(self):
+        qs = self.get_appointments()
+        data = qs.values('payment_type').annotate(total=Sum('price'))
+        return {item['payment_type']: item['total'] for item in data}
 
 
 class Reception(UserProfile):
@@ -154,7 +187,7 @@ class CustomerRecord(models.Model):
         ('card', 'Карта'),
     )
     payment_type = models.CharField(max_length=10, choices=PAYMENT_CHOICES, default='cash', null=True, blank=True)
-    created_date = models.DateTimeField(auto_now_add=True)
+    created_date = models.DateTimeField(auto_now=True)
     STATUS_CHOICES = (
         ('Живая очередь', 'Живая очередь'),
         ('Предзапись', 'Предзапись'),
@@ -170,7 +203,34 @@ class CustomerRecord(models.Model):
     phone_number = PhoneNumberField(region='KG', null=True, blank=True)
     time = models.TimeField(null=True, blank=True)  # расширение времени
     discount = models.PositiveIntegerField(default=0)
+    #admin  models
+    start_at = models.TimeField(default="10:00", null=True, blank=True)
+    end_at = models.TimeField(default="10:00", null=True, blank=True)
 
+    def str(self):
+        return f"{self.patient} → {self.doctor} on {self.created_date} at {self.time}"
+
+    # Оплата
+    def get_payment_method_sums(patient, target_date):
+        from .models import CustomerRecord
+
+        qs = CustomerRecord.objects.filter(patient=patient, date=target_date)
+
+        sums = (
+            qs.values('payment')
+            .annotate(total=Sum('price'))
+        )
+
+        return {entry['payment']: entry['total'] for entry in sums}
+
+        payment_methods = {item['payment']: item['total'] for item in payment_breakdown}
+
+        return {
+            'total_price': total_price,
+            'payment_methods': payment_methods
+        }
+
+###
     def get_total_records(self):
         from .models import HistoryRecord
         return HistoryRecord.objects.filter(patient=self.patient).count()
@@ -210,4 +270,3 @@ class PriceList(models.Model):
 
     def __str__(self):
         return f'{self.department}'
-

@@ -2,9 +2,6 @@ from rest_framework import viewsets
 from .serializers import *
 
 
-class CustomUserViewSet(viewsets.ModelViewSet):
-    queryset = CustomUser.objects.all()
-    serializer_class = CustomUserSerializers
 
 
 class DepartmentViewSet(viewsets.ModelViewSet):

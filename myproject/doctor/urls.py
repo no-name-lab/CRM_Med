@@ -3,7 +3,6 @@ from .views import *
 from rest_framework import routers
 
 router = routers.SimpleRouter()
-router.register(r'user', CustomUserViewSet, basename='user-list')
 router.register(r'department', DepartmentViewSet, basename='department-list')
 router.register(r'service', ServiceViewSet, basename='service-list')
 router.register(r'patient', PatientViewSet, basename='patient-list')

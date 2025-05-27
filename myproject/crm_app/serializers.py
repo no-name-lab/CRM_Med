@@ -1,6 +1,6 @@
 from django.contrib.auth import authenticate
 from rest_framework import serializers
-from reception.models import  Doctor, Patient, CustomUser, Appointment, Department, Service, DoctorSchedule
+from reception.models import  Doctor, Patient, UserProfile, Department, Service, CustomerRecord, HistoryRecord, Reception
 from rest_framework.serializers import Serializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import *
@@ -12,12 +12,12 @@ class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
 
     class Meta:
-        model = CustomUser
+        model = UserProfile
         fields = ['first_name', 'last_name', 'email', 'phone_number', 'password', 'role']
 
     def create(self, validated_data):
         password = validated_data.pop('password')
-        user = CustomUser.objects.create_user(**validated_data)
+        user = UserProfile.objects.create_user(**validated_data)
         user.set_password(password)
         user.save()
         return user
@@ -48,52 +48,67 @@ class LoginSerializer(serializers.Serializer):
         }
 
 
-class EmptySerializer(Serializer):
-    pass
+class LogoutSerializer(serializers.Serializer):
+    refresh = serializers.CharField()
+
+    def validate(self, data):
+        self.token = data['refresh']
+        return data
+
+    def save(self, **kwargs):
+        try:
+            token = RefreshToken(self.token)
+            token.blacklist()
+        except Exception as e:
+            raise serializers.ValidationError({'detail': 'Недействительный или уже отозванный токен'})
 
 
-class PatientSimpleSerializer(serializers.ModelSerializer):
+class PatientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Patient
-        fields = ['first_name', 'last_name']
+        fields = ['full_name']
 
 
 class CustomUserSimpleSerializer(serializers.ModelSerializer):
     class Meta:
-        model = CustomUser
+        model = UserProfile
         fields = ['first_name', 'last_name']
 
 
-class DoctorSimpleSerializer(serializers.ModelSerializer):
-    user = CustomUserSimpleSerializer()
-
+class DoctorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Doctor
-        fields = ['user']
+        fields = ['first_name', 'last_name']
 
 
-class DepartmentSerializer(serializers.ModelSerializer):
+class DepartmentSimpleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Department
         fields = ['name']
 
 
-class ServiceSerializer(serializers.ModelSerializer):
+class ServiceSimpleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Service
         fields = ['name', 'price']
 
 
+class ReceptionSimpleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Reception
+        fields = ['desk_name']
+
+
 #Записи на прием
 class AppointmentAdminSerializer(serializers.ModelSerializer):
-    date = serializers.DateField(format='%d-%m-%Y')
+    created_date = serializers.DateTimeField(format='%d-%m-%Y')
     time = serializers.TimeField(format='%H:%M')
-    patient = PatientSimpleSerializer()
-    doctor = DoctorSimpleSerializer()
+    patient = PatientSerializer()
+    doctor = DoctorSerializer()
 
     class Meta:
-        model = Appointment
-        fields = ['id', 'date', 'time', 'patient', 'doctor', 'payment']
+        model = CustomerRecord
+        fields = ['id', 'created_date', 'time', 'patient', 'doctor', 'payment_type', 'price']
 
 
 #Добавление пациента
@@ -102,7 +117,7 @@ class PatientAdminCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Patient
-        fields = ['id', 'first_name', 'last_name', 'date_birth', 'gender', 'phone_number']
+        fields = ['id', 'full_name', 'date_birth', 'gender', 'phone_number']
 
 
 class AppointmentPatientSerializer(serializers.ModelSerializer):
@@ -111,172 +126,168 @@ class AppointmentPatientSerializer(serializers.ModelSerializer):
     end_at = serializers.TimeField(format='%H:%M', input_formats=['%H:%M'])
 
     class Meta:
-        model = Appointment
-        fields = ['id', 'patient','doctor', 'registrar', 'department', 'service', 'status', 'start_at', 'end_at']
+        model = CustomerRecord
+        fields = ['id', 'patient','doctor', 'reception', 'department', 'service', 'status', 'start_at', 'end_at', 'price']
 
 
 #ИНФО О ПАЦИЕНТЕ
 class InfoAppointmentSerializer(serializers.ModelSerializer):
-    registrar = CustomUserSimpleSerializer()
-    doctor = DoctorSimpleSerializer()
-    department =DepartmentSerializer()
-    service = ServiceSerializer()
+    reception = ReceptionSimpleSerializer()
+    doctor = DoctorSerializer()
+    department = DepartmentSimpleSerializer()
+    service = ServiceSimpleSerializer()
 
     class Meta:
-        model = Appointment
-        fields = ['registrar', 'doctor', 'start_at', 'end_at', 'status', 'department', 'service']
+        model = CustomerRecord
+        fields = ['reception', 'doctor', 'start_at', 'end_at', 'status', 'department', 'service']
 
 
 #История записей
-class PatientAppointmentStatsSerializer(serializers.Serializer):
+class AppointmentHistorySerializer(serializers.ModelSerializer):
+    reception = ReceptionSimpleSerializer()
+    created_date = serializers.DateTimeField(format='%d-%m-%Y')
+    time = serializers.TimeField(format='%H:%M')
+    doctor = DoctorSerializer()
+    department = DepartmentSimpleSerializer()
+    service = ServiceSimpleSerializer()
+    delete_url = serializers.SerializerMethodField()
+
     total_appointments = serializers.SerializerMethodField()
     status_counts = serializers.SerializerMethodField()
 
-    def get_total_appointments(self, obj):
-        return Appointment.objects.filter(patient=obj).count()
-
-    def get_status_counts(self, obj):
-        patient = obj
-        qs = Appointment.objects.filter(patient=patient)
-        return qs.aggregate(
-            waiting=Count('id', filter=Q(status='waiting')),
-            reserved=Count('id', filter=Q(status='reserved')),
-            cancelled=Count('id', filter=Q(status='cancelled')),
-        )
-
-
-class AppointmentHistorySerializer(serializers.ModelSerializer):
-    registrar = CustomUserSimpleSerializer()
-    date = serializers.DateField(format='%d-%m-%Y')
-    time = serializers.TimeField(format='%H:%M')
-    doctor = DoctorSimpleSerializer()
-    department = DepartmentSerializer()
-    service = ServiceSerializer()
-    delete_url = serializers.SerializerMethodField()
-
     class Meta:
-        model = Appointment
-        fields = ['id', 'registrar', 'department', 'doctor', 'service', 'date', 'time', 'status', 'delete_url']
+        model = CustomerRecord
+        fields = ['id', 'reception', 'department', 'doctor', 'service', 'created_date', 'time', 'status',
+                  'delete_url', 'total_appointments', 'status_counts']
 
     def get_delete_url(self, obj):
         return f"/appointment/admin/{obj.id}/history/{obj.id}/delete/"
 
+    def get_total_appointments(self, obj):
+        if obj.patient:
+            return CustomerRecord.objects.filter(patient=obj.patient).count()
+        return 0
 
-class PatientAppointmentsFullSerializer(serializers.Serializer):
-    appointments = serializers.SerializerMethodField()
-    summary = serializers.SerializerMethodField()
+    def get_status_counts(self, obj):
+        if not obj.patient:
+            return {}
 
-    def get_appointments(self, obj):
-        appointments = Appointment.objects.filter(patient=obj)
-        return AppointmentHistorySerializer(appointments, many=True).data
-
-    def get_summary(self, obj):
-        return PatientAppointmentStatsSerializer(obj).data
+        qs = CustomerRecord.objects.filter(patient=obj.patient)
+        return qs.aggregate(
+            waiting=Count('id', filter=Q(status='в ожидании')),
+            reserved=Count('id', filter=Q(status='Предзапись')),
+            cancelled=Count('id', filter=Q(status='Отменено')),
+        )
 
 
 #История приемов
 class AppointmentWaitingHistorySerializer(serializers.ModelSerializer):
-    registrar = CustomUserSimpleSerializer()
-    date = serializers.DateField(format='%d-%m-%Y')
+    reception = ReceptionSimpleSerializer()
+    created_date = serializers.DateTimeField(format='%d-%m-%Y')
     time = serializers.TimeField(format='%H:%M')
-    doctor = DoctorSimpleSerializer()
-    department = DepartmentSerializer()
-    service = ServiceSerializer()
+    doctor = DoctorSerializer()
+    department = DepartmentSimpleSerializer()
+    service = ServiceSimpleSerializer()
+
+    total_appointments = serializers.SerializerMethodField()
+    status_counts = serializers.SerializerMethodField()
 
     class Meta:
-        model = Appointment
-        fields = ['id', 'registrar', 'department', 'doctor', 'service', 'date', 'time', 'status']
+        model = CustomerRecord
+        fields = ['id', 'reception', 'department', 'doctor', 'service', 'created_date', 'time', 'status', 'total_appointments', 'status_counts']
 
 
-class PatientWaitingAppointmentsFullSerializer(serializers.Serializer):
-    appointments = serializers.SerializerMethodField()
-    summary = serializers.SerializerMethodField()
+    def get_total_appointments(self, obj):
+        if obj.patient:
+            return CustomerRecord.objects.filter(patient=obj.patient).count()
+        return 0
 
-    def get_appointments(self, obj):
-        waiting_appointments = obj.appointments.filter(status='waiting')
-        return AppointmentWaitingHistorySerializer(waiting_appointments, many=True).data
+    def get_status_counts(self, obj):
+        if not obj.patient:
+            return {}
 
-    def get_summary(self, obj):
-        return PatientAppointmentStatsSerializer(obj).data
+        qs = CustomerRecord.objects.filter(patient=obj.patient)
+        return qs.aggregate(
+            waiting=Count('id', filter=Q(status='в ожидании')),
+            reserved=Count('id', filter=Q(status='Предзапись')),
+            cancelled=Count('id', filter=Q(status='Отменено')),
+        )
 
 
 #Оплата
-class AppointmentSimpleSerializer(serializers.ModelSerializer):
-    department = DepartmentSerializer()
-    service = ServiceSerializer()
+class PatientPaymentReportSerializer(serializers.ModelSerializer):
+    department = DepartmentSimpleSerializer()
+    service = ServiceSimpleSerializer()
+    created_date = serializers.DateTimeField(format='%d-%m-%Y')
 
-    class Meta:
-        model = Appointment
-        fields = ['department', 'doctor', 'service', 'date', 'time', 'payment', 'price']
-
-
-class PatientPaymentReportSerializer(serializers.Serializer):
-    appointments = serializers.SerializerMethodField()
     total_paid = serializers.SerializerMethodField()
     payment_method_sums = serializers.SerializerMethodField()
 
-    def get_appointments(self, obj):
-        qs = Appointment.objects.filter(patient=obj)
-        return AppointmentSimpleSerializer(qs, many=True).data
+    class Meta:
+        model = CustomerRecord
+        fields = ['department', 'doctor', 'service', 'created_date', 'time', 'payment_type', 'price', 'total_paid', 'payment_method_sums']
 
     def get_total_paid(self, obj):
-        return Appointment.objects.filter(patient=obj).aggregate(
-            total=Sum('price')
-        )['total'] or 0
+        if obj.patient:
+            return CustomerRecord.objects.filter(patient=obj.patient).aggregate(
+                total=Sum('price')
+            )['total'] or 0
+        return 0
 
     def get_payment_method_sums(self, obj):
-        qs = Appointment.objects.filter(patient=obj)
-        data = qs.values('payment').annotate(total=Sum('price'))
-        return {item['payment']: item['total'] for item in data}
+        if not obj.patient:
+            return {}
+
+        qs = CustomerRecord.objects.filter(patient=obj.patient)
+        data = qs.values('payment_type').annotate(total=Sum('price'))
+        return {item['payment_type']: item['total'] for item in data}
 
 
 #Данные пациента
-class InfoPatientSerializer(serializers.ModelSerializer):
+class InformationPatientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Patient
-        fields = ['first_name' ,'last_name', 'phone_number', 'gender']
+        fields = ['full_name', 'phone_number', 'gender']
 
 
 #Список врачей
 class DoctorsSerializer(serializers.ModelSerializer):
-    user = CustomUserSimpleSerializer()
-    department = DepartmentSerializer()
+    department = DepartmentSimpleSerializer()
 
     class Meta:
         model = Doctor
-        fields = ['id', 'user', 'cabinet', 'department', 'phone_number']
+        fields = ['id', 'first_name', 'last_name', 'cabinet', 'department', 'phone_number']
 
 
 #Добавление врача
 class DoctorCreateSerializer(serializers.ModelSerializer):
-    user = CustomUserSimpleSerializer()
-    department = DepartmentSerializer()
+    department = DepartmentSimpleSerializer()
 
     class Meta:
         model = Doctor
-        fields = ['id', 'user', 'image', 'department', 'job_title', 'phone_number', 'email']
+        fields = ['id', 'first_name', 'last_name', 'image', 'department', 'job_title', 'phone_number', 'email']
 
 
 #Сохранение врача
 class DoctorSaveSerializer(serializers.ModelSerializer):
-    user = CustomUserSimpleSerializer()
-    department = DepartmentSerializer()
+    departament = DepartmentSimpleSerializer(read_only=True)
 
     class Meta:
         model = Doctor
-        fields = ['id', 'user', 'email', 'phone_number', 'department', 'job_title', 'bonus']
+        fields = ['id', 'first_name', 'last_name', 'email', 'phone_number', 'departament', 'job_title', 'bonus']
 
 
 #Подробный отчет
 class DoctorAppointmentSerializer(serializers.ModelSerializer):
-    patient = PatientSimpleSerializer()
-    service = ServiceSerializer()
+    patient = PatientSerializer()
+    service = ServiceSimpleSerializer()
+    created_date = serializers.DateTimeField(format='%d-%m-%Y')
     discount_price = serializers.SerializerMethodField()
     bonus = serializers.SerializerMethodField()
 
     class Meta:
-        model = Appointment
-        fields = ['id', 'date', 'patient', 'service', 'payment', 'price', 'discount_price', 'bonus']
+        model = CustomerRecord
+        fields = ['id', 'created_date', 'patient', 'service', 'payment_type', 'price', 'discount_price', 'bonus']
 
     def get_discount_price(self, obj):
         price = obj.price or 0
@@ -289,52 +300,33 @@ class DoctorAppointmentSerializer(serializers.ModelSerializer):
         return 0
 
 
-class DoctorSummarySerializer(serializers.Serializer):
+class DoctorReportSerializer(serializers.ModelSerializer):
+    doctor_customer = DoctorAppointmentSerializer(read_only=True, many=True)
+
     total_price = serializers.SerializerMethodField()
     total_discounted_price = serializers.SerializerMethodField()
     total_bonus = serializers.SerializerMethodField()
     total_appointments = serializers.SerializerMethodField()
     payment_method_sums = serializers.SerializerMethodField()
 
+    class Meta:
+        model = Doctor
+        fields = ['doctor_customer', 'total_price', 'total_discounted_price', 'total_bonus', 'total_appointments', 'payment_method_sums']
+
     def get_total_price(self, obj):
-        result = obj.get_appointments().aggregate(total=Sum('price'))
-        return result['total'] or 0
+        return obj.total_price()
 
     def get_total_discounted_price(self, obj):
-        discounted_sum = obj.get_appointments().aggregate(
-            total=Sum(
-                ExpressionWrapper(
-                    F('price') - (F('price') * F('discount') / 100.0),
-                    output_field=FloatField()
-                )
-            )
-        )
-        return discounted_sum['total'] or 0
+        return obj.total_discounted_price()
 
     def get_total_bonus(self, obj):
-        total_discounted = self.get_total_discounted_price(obj)
-        doctor_bonus = obj.bonus or 0
-        return round(total_discounted * (doctor_bonus / 100.0), 2)
+        return obj.total_bonus()
 
     def get_total_appointments(self, obj):
-        return obj.get_appointments().count()
+        return obj.total_appointments()
 
     def get_payment_method_sums(self, obj):
-        qs = obj.get_appointments()
-        payments = qs.values('payment').annotate(total=Sum('price'))
-        return {item['payment']: item['total'] for item in payments}
-
-
-class DoctorAppointmentsFullSerializer(serializers.Serializer):
-    appointments = serializers.SerializerMethodField()
-    summary = serializers.SerializerMethodField()
-
-    def get_appointments(self, obj):
-        appointments = Appointment.objects.filter(doctor=obj)
-        return DoctorAppointmentSerializer(appointments, many=True).data
-
-    def get_summary(self, obj):
-        return DoctorSummarySerializer(obj).data
+        return obj.payment_method_sums()
 
 
 #по врачам (процент врачам)
@@ -344,8 +336,8 @@ class DoctorDailyBonusSerializer(serializers.ModelSerializer):
     bonus = serializers.SerializerMethodField()
 
     class Meta:
-        model = Appointment
-        fields = ['id', 'doctor_name', 'cabinet', 'date', 'bonus']
+        model = CustomerRecord
+        fields = ['id', 'doctor_name', 'cabinet', 'created_date', 'bonus']
 
     def get_doctor_name(self, obj):
         return f"{obj.doctor.user.last_name} {obj.doctor.user.first_name}"
@@ -358,77 +350,26 @@ class DoctorDailyBonusSerializer(serializers.ModelSerializer):
         return round(discounted_price * bonus_percent / Decimal(100), 2)
 
 
-#Сводный отчет
-class ClinicSummaryReportSerializer(serializers.ModelSerializer):
-    total_cash = serializers.SerializerMethodField()
-    total_card = serializers.SerializerMethodField()
-    doctor_cash_total = serializers.SerializerMethodField()
-    doctor_card_total = serializers.SerializerMethodField()
-    clinic_cash_total = serializers.SerializerMethodField()
-    clinic_card_total = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Appointment
-        fields = [
-            'total_cash', 'total_card',
-            'doctor_cash_total', 'doctor_card_total',
-            'clinic_cash_total', 'clinic_card_total',
-        ]
-
-    def get_total_cash(self, obj):
-        return Appointment.total_sum_by_payment('наличные')
-
-    def get_total_card(self, obj):
-        return Appointment.total_sum_by_payment('безналичные(карта)')
-
-    def get_doctor_cash_total(self, obj):
-        return Appointment.doctor_sum_by_payment('наличные')
-
-    def get_doctor_card_total(self, obj):
-        return Appointment.doctor_sum_by_payment('безналичные(карта)')
-
-    def get_clinic_cash_total(self, obj):
-        return Appointment.clinic_sum_by_payment('наличные')
-
-    def get_clinic_card_total(self, obj):
-        return Appointment.clinic_sum_by_payment('безналичные(карта)')
-
-
 # Управление календарем
-class DoctorSimpleScheduleSerializer(serializers.ModelSerializer):
-    user = CustomUserSimpleSerializer()
-    department = DepartmentSerializer()
+class DoctorScheduleSerializer(serializers.ModelSerializer):
+    department = DepartmentSimpleSerializer()
 
     class Meta:
         model = Doctor
-        fields = ['user', 'image', 'speciality', 'department']
+        fields = ['first_name', 'last_name', 'image', 'speciality', 'department']
 
 
 class AppointmentScheduleSerializer(serializers.ModelSerializer):
     start_at = serializers.TimeField(format='%H:%M')
     end_at = serializers.TimeField(format='%H:%M')
+    doctor = DoctorScheduleSerializer()
 
     class Meta:
-        model = Appointment
-        fields = ['start_at', 'end_at', 'status']
-
-
-class DoctorScheduleSerializer(serializers.ModelSerializer):
-    doctor = DoctorSimpleScheduleSerializer()
-    appointment = AppointmentScheduleSerializer()
-
-    class Meta:
-        model = DoctorSchedule
-        fields = ['id', 'doctor', 'appointment']
+        model = CustomerRecord
+        fields = ['id', 'doctor', 'start_at', 'end_at', 'status']
 
 
 #Прайс лист
-class ServiceSimpleSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Service
-        fields = ['name', 'price']
-
-
 class PriceListSerializer(serializers.ModelSerializer):
     services = ServiceSimpleSerializer(read_only=True, many=True)
 

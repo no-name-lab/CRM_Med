@@ -1,8 +1,9 @@
 from rest_framework import viewsets, generics, status
 from rest_framework.response import Response
-from django.utils.dateparse import parse_date
+from rest_framework.views import  APIView
+from reception.serializers import SummaryReportSerializer, DoctorReportSerializers
 from .serializers import *
-from doctor.models import Appointment, Patient, Doctor, DoctorSchedule, Department, CustomUser
+from reception.models import UserProfile, Patient, Doctor, Department, Service, CustomerRecord, HistoryRecord
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import  SearchFilter
 from decimal import Decimal
@@ -10,7 +11,7 @@ from rest_framework_simplejwt.views import  TokenObtainPairView
 
 
 class RegisterView(generics.CreateAPIView):
-    queryset = CustomUser.objects.all()
+    queryset = UserProfile.objects.all()
     serializer_class = UserSerializer
 
     def create(self, request, *args, **kwargs):
@@ -62,23 +63,27 @@ class CustomAdminLoginView(TokenObtainPairView):
 
 
 class LogoutView(generics.GenericAPIView):
-    serializer_class = EmptySerializer
-    def post(self, request, *args, **kwargs ):
+    serializer_class = LogoutSerializer
+
+    def post(self, request, *args, **kwargs):
+        refresh_token = request.data.get("refresh")
+        if not refresh_token:
+            return Response({"detail": "Refresh токен отсутствует."}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            refresh_token = request.data["refresh"]
             token = RefreshToken(refresh_token)
             token.blacklist()
-            return Response(status=status.HTTP_205_RESET_CONTENT)
-        except Exception:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "Вы вышли из системы."}, status=status.HTTP_205_RESET_CONTENT)
+        except Exception as e:
+            return Response({"detail": "Ошибка обработки токена."}, status=status.HTTP_400_BAD_REQUEST)
 
 
 #Записи на прием
-class AppointmentListApiView(generics.ListAPIView):
-    queryset = Appointment.objects.all()
+class RecordsListApiView(generics.ListAPIView):
+    queryset = CustomerRecord.objects.all()
     serializer_class = AppointmentAdminSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    filterset_fields = ['doctor', 'department', 'date']
+    filterset_fields = ['doctor', 'department', 'created_date']
+    search_fields = ['patient']
 
 
 #Добавление пациента
@@ -87,15 +92,15 @@ class PatientCreateApView(generics.CreateAPIView):
 
 
 #ИНФО О ПАЦИЕНТЕ
-class AppointmentDetailApiView(generics.RetrieveAPIView):
-    queryset = Appointment.objects.all()
+class RecordsDetailApiView(generics.RetrieveAPIView):
+    queryset = CustomerRecord.objects.all()
     serializer_class = InfoAppointmentSerializer
 
 
 #История записей
 class PatientAppointmentReportView(generics.RetrieveAPIView):
-    serializer_class = PatientAppointmentsFullSerializer
-    queryset = Patient.objects.all()
+    serializer_class = AppointmentHistorySerializer
+    queryset = CustomerRecord.objects.all()
 
     def delete(self, request, *args, **kwargs):
         patient_id = self.kwargs.get('pk')
@@ -109,27 +114,27 @@ class PatientAppointmentReportView(generics.RetrieveAPIView):
         except Patient.DoesNotExist:
             return Response({"error": "Пациент не найден."}, status=404)
 
-        deleted_count, _ = Appointment.objects.filter(id__in=appointment_ids, patient=patient).delete()
+        deleted_count, _ = CustomerRecord.objects.filter(id__in=appointment_ids, patient=patient).delete()
 
         return Response({"deleted": deleted_count}, status=200)
 
 
 #История приемов
 class PatientWaitingAppointmentsAPIView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Patient.objects.all()
-    serializer_class = PatientWaitingAppointmentsFullSerializer
+    queryset = CustomerRecord.objects.all()
+    serializer_class = AppointmentWaitingHistorySerializer
 
 
 #Оплата
 class PatientPaymentReportView(generics.RetrieveAPIView):
-    queryset = Patient.objects.all()
+    queryset = CustomerRecord.objects.all()
     serializer_class = PatientPaymentReportSerializer
 
 
 #Данные пациента
 class InfoPatientApiView(generics.RetrieveAPIView):
     queryset = Patient.objects.all()
-    serializer_class = InfoPatientSerializer
+    serializer_class = InformationPatientSerializer
 
 
 #Список врачей
@@ -144,7 +149,7 @@ class DoctorCreateApiView(generics.CreateAPIView):
 
 
 #Сохранение врача
-class DoctorSaveApiView(generics.ListCreateAPIView):
+class DoctorSaveApiView(generics.CreateAPIView):
     queryset = Doctor.objects.all()
     serializer_class = DoctorSaveSerializer
 
@@ -152,70 +157,81 @@ class DoctorSaveApiView(generics.ListCreateAPIView):
 #Подробный отчет
 class DoctorAppointmentsApiView(generics.RetrieveAPIView):
     queryset = Doctor.objects.all()
-    serializer_class = DoctorAppointmentsFullSerializer
+    serializer_class = DoctorReportSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    filterset_fields = ['user', 'department']
+    filterset_fields = [ 'department']
     search_fields = ['speciality']
 
 
-#по врачам (процент врачам)
-class DoctorDailyBonusListView(generics.ListAPIView):
-    serializer_class = DoctorDailyBonusSerializer
+#Сводный отчет
+class SummaryReportClinicAPIView(APIView):
+
+    def get(self, request):
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+
+        records = CustomerRecord.objects.filter(records='был в приеме')
+
+        if start_date and end_date:
+            records = records.filter(date__date__range=[start_date, end_date])
+
+        total_cash = records.filter(payment_type='cash').aggregate(Sum('price'))['price__sum'] or 0
+        total_card = records.filter(payment_type='card').aggregate(Sum('price'))['price__sum'] or 0
+        total_price = records.aggregate(Sum('price'))['price__sum'] or 0
+        total_to_doctors = total_price  # или своя логика
+
+        data = {
+            "total_cash": total_cash,
+            "total_card": total_card,
+            "total_price": total_price,
+            "total_to_doctors": total_to_doctors
+        }
+
+        serializer = SummaryReportSerializer(data)
+        return Response(serializer.data)
+
+
+# по врачам (процент врачу)
+class DoctorReportListAPIView(generics.ListAPIView):
+    serializer_class = DoctorReportSerializers
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields =  ['doctor', 'created_date']
+    search_fields = ['patient']
+
 
     def get_queryset(self):
-        queryset = Appointment.objects.select_related('doctor', 'doctor__user')
-        start_date = self.request.query_params.get('start_date')
-        end_date = self.request.query_params.get('end_date')
-
-        if start_date and end_date:
-            queryset = queryset.filter(date__range=[start_date, end_date])
-        return queryset
+        qs = CustomerRecord.objects.select_related('doctor', 'patient', 'service')
+        return self.filter_queryset(qs)
 
     def list(self, request, *args, **kwargs):
-        queryset = self.get_queryset()
-        serializer = self.get_serializer(queryset, many=True)
+        queryset = self.filter_queryset(self.get_queryset())
 
-        bonus_sum = Decimal('0')
-        for obj in queryset:
-            percent = Decimal(getattr(obj.doctor, 'bonus', 0)) / Decimal('100')
-            price = Decimal(obj.price or 0)
-            discount = Decimal(obj.discount or 0) / Decimal('100')
-            discounted_price = price - (price * discount)
-            bonus_sum += discounted_price * percent
+        response = super().list(request, *args, **kwargs)
 
-        return Response({
-            'results': serializer.data,
-            'total_bonus_sum': round(bonus_sum, 2)
-        })
+        # Расчёт доли врача: (price * doctor.bonus / 100)
+        queryset_with_bonus = queryset.annotate(
+            doctor_income=ExpressionWrapper(
+                F('price') * F('doctor__bonus') / 100.0,
+                output_field=FloatField()
+            )
+        )
 
+        total_doctor_income = queryset_with_bonus.aggregate(
+            Sum('doctor_income')
+        )['doctor_income__sum'] or 0
 
-#Сводный отчет
-class ClinicSummaryReportView(generics.RetrieveAPIView):
-    serializer_class = ClinicSummaryReportSerializer
-
-    def get_object(self):
-        start_date = parse_date(self.request.query_params.get('start_date'))
-        end_date = parse_date(self.request.query_params.get('end_date'))
-
-        # Получаем отфильтрованные приёмы по дате
-        queryset = Appointment.objects.all()
-        if start_date and end_date:
-            queryset = queryset.filter(date__range=(start_date, end_date))
-        elif start_date:
-            queryset = queryset.filter(date__gte=start_date)
-        elif end_date:
-            queryset = queryset.filter(date__lte=end_date)
-
-        # Создаём фиктивный объект с аннотированными методами
-        report = Appointment()
-        report.filtered_queryset = queryset  # временно прикрепляем к объекту
-        return report
+        # Ответ только с суммой врача и записями
+        response.data = {
+            'total_doctor_income': round(total_doctor_income, 2),
+            'records': response.data
+        }
+        return response
 
 
 # Управление календарем
 class DoctorScheduleApiView(generics.ListAPIView):
-    queryset = DoctorSchedule.objects.all()
-    serializer_class = DoctorScheduleSerializer
+    queryset = CustomerRecord.objects.all()
+    serializer_class = AppointmentScheduleSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['doctor']
 

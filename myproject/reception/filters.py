@@ -39,5 +39,5 @@ class DoctorListFilter(FilterSet):
     class Meta:
         model = Doctor
         fields = {
-            'departament': ['exact'],
+            'department': ['exact'],
         }
