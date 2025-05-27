@@ -1,44 +1,22 @@
 from rest_framework import serializers
-from .models import *
+from .models import DoctorSchedule, Appointment
 
 
-class CustomUserSerializers(serializers.ModelSerializer):
-    class Meta:
-        model = CustomUser
-        fields = ['first_name', 'last_name', 'email', 'phone_number', 'password', 'role']
-
-
-class DepartmentSerializers(serializers.ModelSerializer):
-    class Meta:
-        model = Department
-        fields = ['name']
-
-
-class ServiceSerializers(serializers.ModelSerializer):
-    class Meta:
-        model = Service
-        fields = ['name', 'department', 'price']
-
-
-class PatientSerializers(serializers.ModelSerializer):
-    class Meta:
-        model = Patient
-        fields = ['first_name', 'last_name', 'date_birth', 'gender', 'phone_number']
-
-
-class DoctorSerializers(serializers.ModelSerializer):
-    class Meta:
-        model = Doctor
-        fields = ['user', 'speciality', 'medical_license', 'bonus', 'image', 'department', 'cabinet']
-
-
-class DoctorScheduleSerializers(serializers.ModelSerializer):
+class DoctorScheduleSerializer(serializers.ModelSerializer):
     class Meta:
         model = DoctorSchedule
-        fields = ['doctor', 'date', 'start_time', 'end_time', 'is_available']
+        fields = '__all__'
 
 
-class AppointmentSerializers(serializers.ModelSerializer):
+class AppointmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Appointment
         fields = '__all__'
+
+    def validate(self, data):
+        doctor = data['doctor']
+        date = data['date']
+        time = data['time']
+        if Appointment.objects.filter(doctor=doctor, date=date, time=time).exists():
+            raise serializers.ValidationError("На это время уже есть запись к врачу.")
+        return data
