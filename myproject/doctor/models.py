@@ -2,6 +2,7 @@ from django.db import models
 from reception.models import UserProfile, Department, Patient, Doctor, Service
 
 
+
 class DoctorSchedule(models.Model):
     doctor = models.ForeignKey(Doctor, related_name='schedules', on_delete=models.CASCADE)
     date = models.DateField()
@@ -29,8 +30,10 @@ class Appointment(models.Model):
     department = models.ForeignKey(Department, on_delete=models.CASCADE)
     service = models.ForeignKey(Service, on_delete=models.CASCADE)
     date = models.DateField()
-    time = models.TimeField()
+    start_time = models.TimeField()
+    end_time = models.TimeField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='waiting')
+    created_at = models.DateTimeField(auto_now_add=True)
     notes = models.TextField(blank=True, null=True)
 
     def __str__(self):
