@@ -109,7 +109,7 @@ class DoctorViewSet(viewsets.ModelViewSet):
     serializer_class = DoctorListSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_class = DoctorListFilter
-    search_fields = ['doctor']
+    search_fields = ['doctor'] 
 
 
 class AboutPatientRecordListAPIView(generics.ListAPIView):
