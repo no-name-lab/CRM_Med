@@ -208,7 +208,7 @@ class DoctorListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Doctor
-        fields = ['speciality', 'cabinet', 'departament', 'phone_number']
+        fields = ['speciality', 'cabinet', 'department', 'phone_number']
 
 
 class AboutPatientRecordSerializer(serializers.ModelSerializer):

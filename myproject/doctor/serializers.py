@@ -1,40 +1,22 @@
 from rest_framework import serializers
-from .models import *
+from .models import DoctorSchedule, Appointment
 
 
-
-
-class DepartmentSerializers(serializers.ModelSerializer):
-    class Meta:
-        model = Department
-        fields = '__all__'
-
-
-class ServiceSerializers(serializers.ModelSerializer):
-    class Meta:
-        model = Service
-        fields = '__all__'
-
-
-class PatientSerializers(serializers.ModelSerializer):
-    class Meta:
-        model = Patient
-        fields = '__all__'
-
-
-class DoctorSerializers(serializers.ModelSerializer):
-    class Meta:
-        model = Doctor
-        fields = '__all__'
-
-
-class DoctorScheduleSerializers(serializers.ModelSerializer):
+class DoctorScheduleSerializer(serializers.ModelSerializer):
     class Meta:
         model = DoctorSchedule
         fields = '__all__'
 
 
-class AppointmentSerializers(serializers.ModelSerializer):
+class AppointmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Appointment
         fields = '__all__'
+
+    def validate(self, data):
+        doctor = data['doctor']
+        date = data['date']
+        time = data['time']
+        if Appointment.objects.filter(doctor=doctor, date=date, time=time).exists():
+            raise serializers.ValidationError("На это время уже есть запись к врачу.")
+        return data
