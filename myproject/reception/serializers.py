@@ -204,7 +204,7 @@ class CustomerRecordCreateSerializer(serializers.ModelSerializer):
 
 
 class DoctorListSerializer(serializers.ModelSerializer):
-    departament = DepartmentSerializer(read_only=True)
+    department = DepartmentSerializer(read_only=True)
 
     class Meta:
         model = Doctor
