@@ -149,7 +149,7 @@ class DoctorCreateApiView(generics.CreateAPIView):
 
 
 #Сохранение врача
-class DoctorSaveApiView(generics.CreateAPIView):
+class DoctorSaveApiView(generics.ListCreateAPIView):
     queryset = Doctor.objects.all()
     serializer_class = DoctorSaveSerializer
 

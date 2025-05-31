@@ -87,7 +87,7 @@ class Doctor(UserProfile):
     image = models.ImageField(upload_to='doctor_img/', null=True, blank=True)
     department = models.ForeignKey(Department, related_name='department_doctor', on_delete=models.CASCADE, null=True,
                                     blank=True)
-    cabinet = models.SmallIntegerField()
+    cabinet = models.SmallIntegerField(null=True, blank=True)
     #admin models
     job_title = models.CharField(max_length=34, null=True, blank=True)
 
