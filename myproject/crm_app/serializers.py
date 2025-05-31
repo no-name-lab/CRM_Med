@@ -261,7 +261,7 @@ class DoctorsSerializer(serializers.ModelSerializer):
 
 #Добавление врача
 class DoctorCreateSerializer(serializers.ModelSerializer):
-    department = DepartmentSimpleSerializer()
+    department = DepartmentSimpleSerializer(read_only=True)
 
     class Meta:
         model = Doctor
