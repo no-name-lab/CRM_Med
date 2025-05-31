@@ -1,37 +1,15 @@
-from rest_framework import viewsets
-from .serializers import *
-
-
-
-
-class DepartmentViewSet(viewsets.ModelViewSet):
-    queryset = Department.objects.all()
-    serializer_class = DepartmentSerializers
-
-
-class ServiceViewSet(viewsets.ModelViewSet):
-    queryset = Service.objects.all()
-    serializer_class = ServiceSerializers
-
-
-class PatientViewSet(viewsets.ModelViewSet):
-    queryset = Patient.objects.all()
-    serializer_class = PatientSerializers
-
-
-class DoctorViewSet(viewsets.ModelViewSet):
-    queryset = Doctor.objects.all()
-    serializer_class = DoctorSerializers
+from rest_framework import viewsets, permissions
+from .models import DoctorSchedule, Appointment
+from .serializers import DoctorScheduleSerializer, AppointmentSerializer
 
 
 class DoctorScheduleViewSet(viewsets.ModelViewSet):
     queryset = DoctorSchedule.objects.all()
-    serializer_class = DoctorScheduleSerializers
+    serializer_class = DoctorScheduleSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
 
 class AppointmentViewSet(viewsets.ModelViewSet):
     queryset = Appointment.objects.all()
-    serializer_class = AppointmentSerializers
-
-
-
+    serializer_class = AppointmentSerializer
+    permission_classes = [permissions.IsAuthenticated]
