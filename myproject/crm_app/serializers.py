@@ -261,17 +261,13 @@ class DoctorsSerializer(serializers.ModelSerializer):
 
 #Добавление врача
 class DoctorCreateSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = Doctor
         fields = ['id', 'first_name', 'last_name', 'image', 'department', 'job_title', 'phone_number', 'email']
 
 
 #Сохранение врача
-class DoctorBonusUpdateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Doctor
-        fields = ['bonus']
-
 class DoctorSaveSerializer(serializers.ModelSerializer):
     class Meta:
         model = Doctor
