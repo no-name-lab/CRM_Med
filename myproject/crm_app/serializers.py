@@ -84,7 +84,7 @@ class DoctorSerializer(serializers.ModelSerializer):
 class DepartmentSimpleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Department
-        fields = ['name']
+        fields = ['id', 'name']
 
 
 class ServiceSimpleSerializer(serializers.ModelSerializer):
@@ -272,7 +272,8 @@ class DoctorSaveSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Doctor
-        fields = ['id', 'first_name', 'last_name', 'email', 'phone_number', 'department', 'job_title', 'bonus']
+        fields = ['id', 'image', 'first_name', 'last_name', 'email', 'phone_number', 'department', 'job_title', 'bonus']
+        read_only_fields = ['first_name', 'last_name', 'image', 'department', 'job_title', 'phone_number', 'email']
 
 
 #Подробный отчет
@@ -349,7 +350,7 @@ class DoctorDailyBonusSerializer(serializers.ModelSerializer):
 
 
 # Управление календарем
-class DoctorScheduleSerializer(serializers.ModelSerializer):
+class DoctorSchedulesSerializer(serializers.ModelSerializer):
     department = DepartmentSimpleSerializer()
 
     class Meta:
@@ -360,7 +361,7 @@ class DoctorScheduleSerializer(serializers.ModelSerializer):
 class AppointmentScheduleSerializer(serializers.ModelSerializer):
     start_at = serializers.TimeField(format='%H:%M')
     end_at = serializers.TimeField(format='%H:%M')
-    doctor = DoctorScheduleSerializer()
+    doctor = DoctorSchedulesSerializer()
 
     class Meta:
         model = CustomerRecord

@@ -1,3 +1,4 @@
+from rest_framework.decorators import action
 from rest_framework import viewsets, generics, status
 from rest_framework.response import Response
 from rest_framework.views import  APIView
@@ -8,6 +9,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import  SearchFilter
 from decimal import Decimal
 from rest_framework_simplejwt.views import  TokenObtainPairView
+from rest_framework.parsers import MultiPartParser, FormParser
 
 
 class RegisterView(generics.CreateAPIView):
@@ -146,12 +148,19 @@ class DoctorsApiView(generics.ListAPIView):
 #Добавление врача
 class DoctorCreateApiView(generics.CreateAPIView):
     serializer_class = DoctorCreateSerializer
+    parser_classes = [MultiPartParser, FormParser]
 
 
 # Сохранение врача
-class DoctorSaveApiView(generics.UpdateAPIView):
+class DoctorSaveApiView(generics.RetrieveUpdateAPIView):
     queryset = Doctor.objects.all()
     serializer_class = DoctorSaveSerializer
+    parser_classes = [MultiPartParser, FormParser]
+
+
+class DepartmentViewSet(viewsets.ModelViewSet):
+    queryset = Department.objects.all()
+    serializer_class = DepartmentSimpleSerializer
 
 
 #Подробный отчет
