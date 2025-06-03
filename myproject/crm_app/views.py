@@ -151,16 +151,11 @@ class DoctorCreateApiView(generics.CreateAPIView):
     parser_classes = [MultiPartParser, FormParser]
 
 
-# Сохранение врача
+#Сохранение врача
 class DoctorSaveApiView(generics.RetrieveUpdateAPIView):
     queryset = Doctor.objects.all()
     serializer_class = DoctorSaveSerializer
     parser_classes = [MultiPartParser, FormParser]
-
-
-class DepartmentViewSet(viewsets.ModelViewSet):
-    queryset = Department.objects.all()
-    serializer_class = DepartmentSimpleSerializer
 
 
 #Подробный отчет
@@ -200,7 +195,7 @@ class SummaryReportClinicAPIView(APIView):
         return Response(serializer.data)
 
 
-# по врачам (процент врачу)
+#по врачам (процент врачу)
 class DoctorReportListAPIView(generics.ListAPIView):
     serializer_class = DoctorReportSerializers
     filter_backends = [DjangoFilterBackend, SearchFilter]
@@ -237,7 +232,7 @@ class DoctorReportListAPIView(generics.ListAPIView):
         return response
 
 
-# Управление календарем
+#Управление календарем
 class DoctorScheduleApiView(generics.ListAPIView):
     queryset = CustomerRecord.objects.all()
     serializer_class = AppointmentScheduleSerializer
@@ -249,3 +244,14 @@ class DoctorScheduleApiView(generics.ListAPIView):
 class PriceListApiView(generics.ListAPIView):
     queryset = Department.objects.all()
     serializer_class = PriceListSerializer
+
+
+###
+class DepartmentViewSet(viewsets.ModelViewSet):
+    queryset = Department.objects.all()
+    serializer_class = DepartmentsSerializer
+
+
+class ServiceViewSet(viewsets.ModelViewSet):
+    queryset = Service.objects.all()
+    serializer_class = ServicesSerializer

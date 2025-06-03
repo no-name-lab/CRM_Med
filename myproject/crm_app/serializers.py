@@ -84,6 +84,12 @@ class DoctorSerializer(serializers.ModelSerializer):
 class DepartmentSimpleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Department
+        fields = ['name']
+
+
+class DepartmentsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Department
         fields = ['id', 'name']
 
 
@@ -91,6 +97,12 @@ class ServiceSimpleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Service
         fields = ['name', 'price']
+
+
+class ServicesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Service
+        fields = ['id', 'name', 'department']
 
 
 class ReceptionSimpleSerializer(serializers.ModelSerializer):
@@ -261,7 +273,6 @@ class DoctorsSerializer(serializers.ModelSerializer):
 
 #Добавление врача
 class DoctorCreateSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Doctor
         fields = ['id', 'first_name', 'last_name', 'image', 'department', 'job_title', 'phone_number', 'email']
@@ -269,7 +280,6 @@ class DoctorCreateSerializer(serializers.ModelSerializer):
 
 #Сохранение врача
 class DoctorSaveSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Doctor
         fields = ['id', 'image', 'first_name', 'last_name', 'email', 'phone_number', 'department', 'job_title', 'bonus']
