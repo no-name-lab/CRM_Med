@@ -84,9 +84,9 @@ class Doctor(UserProfile):
     speciality = models.CharField(max_length=256)
     medical_license = models.CharField(max_length=256, null=True, blank=True )
     bonus = models.PositiveIntegerField(default=0, null=True, blank=True)
-    image = models.FileField(upload_to='doctor_img/', null=True, blank=True)
+    image = models.ImageField(upload_to='doctor_img/', null=True, blank=True, default=0)
     department = models.ForeignKey(Department, related_name='department_doctor', on_delete=models.CASCADE, null=True,
-                                    blank=True)
+                                    blank=True,)
     cabinet = models.SmallIntegerField(null=True, blank=True)
     #admin models
     job_title = models.CharField(max_length=34, null=True, blank=True)
@@ -246,7 +246,7 @@ class CustomerRecord(models.Model):
 class HistoryRecord(models.Model):
     patient = models.ForeignKey(Patient, related_name='patient_history', on_delete=models.CASCADE)
     reception = models.ForeignKey(Reception, related_name='reception_history', on_delete=models.CASCADE)
-    department = models.ForeignKey(Department, related_name='department_history', on_delete=models.CASCADE)
+    department = models.ForeignKey(Department, related_name='department_history', on_delete=models.CASCADE, null=True, blank=True)
     doctor = models.ForeignKey(Doctor, related_name='doctor_history', on_delete=models.CASCADE)
     service = models.ForeignKey(Service, related_name='service_history', on_delete=models.CASCADE)
     date = models.DateField(auto_now_add=True)

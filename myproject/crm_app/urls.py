@@ -4,6 +4,8 @@ from rest_framework import routers
 
 
 router = routers.SimpleRouter()
+router.register(r'department', DepartmentViewSet, basename='department')
+
 
 urlpatterns = [
     path('', include(router.urls)),

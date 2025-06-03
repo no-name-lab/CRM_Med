@@ -84,7 +84,7 @@ class DoctorSerializer(serializers.ModelSerializer):
 class DepartmentSimpleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Department
-        fields = ['name']
+        fields = ['id', 'name']
 
 
 class ServiceSimpleSerializer(serializers.ModelSerializer):
@@ -273,6 +273,7 @@ class DoctorSaveSerializer(serializers.ModelSerializer):
     class Meta:
         model = Doctor
         fields = ['id', 'image', 'first_name', 'last_name', 'email', 'phone_number', 'department', 'job_title', 'bonus']
+        read_only_fields = ['first_name', 'last_name', 'image', 'department', 'job_title', 'phone_number', 'email']
 
 
 #Подробный отчет
