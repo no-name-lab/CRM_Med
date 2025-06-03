@@ -5,6 +5,7 @@ from rest_framework import routers
 
 router = routers.SimpleRouter()
 router.register(r'department', DepartmentViewSet, basename='department')
+router.register(r'service', ServiceViewSet, basename='service')
 
 
 urlpatterns = [
