@@ -154,6 +154,11 @@ class DoctorSaveApiView(generics.RetrieveUpdateAPIView):
     serializer_class = DoctorSaveSerializer
 
 
+class DepartmentApiView(viewsets.ModelViewSet):
+    queryset =  Department.objects.all()
+    serializer_class = DepartmentSimpleSerializer
+
+
 #Подробный отчет
 class DoctorAppointmentsApiView(generics.RetrieveAPIView):
     queryset = Doctor.objects.all()

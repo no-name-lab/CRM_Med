@@ -84,7 +84,7 @@ class DoctorSerializer(serializers.ModelSerializer):
 class DepartmentSimpleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Department
-        fields = ['name']
+        fields = ['id', 'name']
 
 
 class ServiceSimpleSerializer(serializers.ModelSerializer):

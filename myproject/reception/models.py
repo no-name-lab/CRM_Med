@@ -84,7 +84,7 @@ class Doctor(UserProfile):
     speciality = models.CharField(max_length=256)
     medical_license = models.CharField(max_length=256, null=True, blank=True )
     bonus = models.PositiveIntegerField(default=0, null=True, blank=True)
-    image = models.ImageField(upload_to='doctor_img/', null=True, blank=True)
+    image = models.FileField(upload_to='doctor_img/', null=True, blank=True)
     department = models.ForeignKey(Department, related_name='department_doctor', on_delete=models.CASCADE, null=True,
                                     blank=True)
     cabinet = models.SmallIntegerField(null=True, blank=True)
