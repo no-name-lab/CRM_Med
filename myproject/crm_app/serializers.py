@@ -102,7 +102,7 @@ class ServiceSimpleSerializer(serializers.ModelSerializer):
 class ServicesSerializer(serializers.ModelSerializer):
     class Meta:
         model = Service
-        fields = ['id', 'name', 'department']
+        fields = ['id', 'name', 'price', 'department']
 
 
 class ReceptionSimpleSerializer(serializers.ModelSerializer):
